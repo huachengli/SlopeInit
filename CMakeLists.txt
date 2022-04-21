@@ -3,6 +3,6 @@ project(SlopeInit)
 
 set(CMAKE_CXX_STANDARD 20)
 
-set(SRCS InputParser.c SlopeGeometry.c SlopeGeometry.h)
+set(SRCS src/InputParser.c src/SlopeGeometry.c src/eos_state.c src/eos_cpp.h src/eos_cpp.cpp)
 
 add_executable(SlopeInit main.cpp ${SRCS})
