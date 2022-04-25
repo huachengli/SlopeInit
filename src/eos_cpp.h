@@ -9,18 +9,21 @@
 #include "eos_state.h"
 
 // c++ wrapper for eos table
-class EosTable
+class BaseEOS
 {
 public:
     virtual double InterpolateTD(double tTem,double tDen,int DataId) const = 0;
     virtual double InterpolateTP(double tTem,double tPre,int DataId) const = 0;
-    EosTable() = default;
-    EosTable(uintptr_t _data);
+    BaseEOS() = default;
+    BaseEOS(uintptr_t _data);
+    virtual ~BaseEOS() = 0;
+    virtual double RhoGrav(double z, double Pres, const double Grav[], const double Temp[]) const;
+    virtual double PresProfRK3(double Pres[], double Grav[], double Temp[], int steps, double dh) const;
 protected:
     uintptr_t data;
 };
 
-class ANEOS : public EosTable
+class ANEOS : public BaseEOS
 {
 public:
     ANEOS() = delete;
@@ -35,7 +38,7 @@ private:
     tabletype table;
 };
 
-class TillEOS : public EosTable
+class TillEOS : public BaseEOS
 {
 public:
     TillEOS() = delete;

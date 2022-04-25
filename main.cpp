@@ -2,41 +2,55 @@
 #include "src/InputParser.h"
 #include "src/SlopeGeometry.h"
 #include "src/eos_cpp.h"
+#include "src/SlopeSlove.h"
 
-void InitSlopeEos(SlopeInfo * pSlopeInfo)
-{
-    for(int k=0;k<pSlopeInfo->nmat;++k)
-    {
-        char eos_file[SLOPENAMELEN*2];
-        sprintf(eos_file,"../eos/%s.%s",pSlopeInfo->mname[k],pSlopeInfo->mpostfix[k]);
-        if(0== strcasecmp("aneos",pSlopeInfo->mpostfix[k]))
-        {
-            auto ANEOS_ptr = new ANEOS(eos_file);
-            pSlopeInfo->mdata[k] = reinterpret_cast<uintptr_t>(ANEOS_ptr);
-
-        } else if(0 == strcasecmp("tillotson",pSlopeInfo->mpostfix[k]))
-        {
-            auto TillEOS_ptr = new TillEOS(eos_file);
-            pSlopeInfo->mdata[k] = reinterpret_cast<uintptr_t>(TillEOS_ptr);
-        } else if(0 == strcasecmp("vacuum_",pSlopeInfo->mname[k]))
-        {
-            pSlopeInfo->mdata[k] = 0;
-        } else
-        {
-            fprintf(stdout,"unknown eos type [%s]\n",eos_file);
-            exit(0);
-        }
-    }
-}
-
-int main()
+int main(int argc,char * argv[])
 {
     SlopeInfo pSlopeInfo;
     LoadSlopeInfo(&pSlopeInfo,"../SALEc.inp");
-    InitSlopeEos(&pSlopeInfo);
+    SlopeEquationData::InitSlopeEos(&pSlopeInfo);
+    SlopeEquationData::InitSlopeProfile(&pSlopeInfo);
 
+   /*
     double Xc[8][3];
     GetTransformCorner(&pSlopeInfo,Xc);
     printf("%d\n",pSlopeInfo.noffset);
+    */
+
+    try {
+        using namespace dealii;
+        using namespace Slope;
+        Utilities::MPI::MPI_InitFinalize mpi_initialization(argc,argv,1);
+
+        SlopeProblem<3> slope_problem;
+        slope_problem.set_info(&pSlopeInfo);
+        slope_problem.run();
+    }
+    catch(std::exception &exc)
+    {
+        std::cerr << std::endl
+                  << std::endl
+                  << "----------------------------------------------------"
+                  << std::endl;
+        std::cerr << "Exception on processing: " << std::endl
+                  << exc.what() << std::endl
+                  << "Aborting!" << std::endl
+                  << "----------------------------------------------------"
+                  << std::endl;
+        return 1;
+    }
+    catch (...)
+    {
+        std::cerr << std::endl
+                  << std::endl
+                  << "----------------------------------------------------"
+                  << std::endl;
+        std::cerr << "Unknown exception!" << std::endl
+                  << "Aborting!" << std::endl
+                  << "----------------------------------------------------"
+                  << std::endl;
+        return 1;
+    }
+
     return 0;
 }

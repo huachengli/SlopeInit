@@ -83,6 +83,14 @@ void LoadSlopeInfo(SlopeInfo * _s,const char * _fname)
     {
         char LayerName[MaxStrLen];
         GetValueSk(ifp,"target.material",LayerName,k,"null");
+        _s->depth[k] = GetValueDk(ifp,"target.depth",k,"0.0");
+        if(0==k)
+        {
+            _s->sum_depth[k] = _s->depth[k];
+        } else
+        {
+            _s->sum_depth[k] = _s->sum_depth[k-1] + _s->depth[k];
+        }
         _s->layerId[k] = -1;
         for(int j=0;j<_s->nmat;++j)
         {
@@ -104,6 +112,19 @@ void LoadSlopeInfo(SlopeInfo * _s,const char * _fname)
     }
 
     _s->gravity = GetValueDk(ifp,"condition.gravity",1,"-1.0");
+
+
+    char TargetTemOpt[MaxStrLen];
+    GetValueSk(ifp,"target.temperature",TargetTemOpt,0,"undefined");
+    if(0== strcasecmp("const",TargetTemOpt))
+    {
+        _s->temperature = GetValueDk(ifp,"target.temperature",1,"293.0");
+    } else
+    {
+        fprintf(stdout,"unknown type of temperature [%s]\n",TargetTemOpt);
+        goto ERROR;
+    }
+
 
     EXIT:
     if(ifp) CloseInputFile(ifp);
@@ -199,14 +220,19 @@ double Ip3d7(const double *_x)
 
 double (*IpV[8])(const double *)  = {Ip3d0, Ip3d1, Ip3d2, Ip3d3, Ip3d4, Ip3d5, Ip3d6, Ip3d7};
 
-void TransformInterpolate(double Xi[SLOPEDIM],double xl[SLOPEDIM],double (*Corner)[SLOPEDIM])
+void TransformInterpolate(double Xi[SLOPEDIM],double xl[SLOPEDIM],const double Corner[][SLOPEDIM])
 {
     Xi[0] = Xi[1] = Xi[2] = 0.;
-    for(int j=0;j<7;j++)
+    for(int j=0;j<8;j++)
     {
         for(int k=0;k<SLOPEDIM;++k)
         {
             Xi[k] += IpV[j](xl)*Corner[j][k];
         }
     }
+}
+
+double EvaluateDepth(SlopeInfo * _s,double px,double py, double  pz)
+{
+    return _s->equation[0]*px + _s->equation[1]*py + _s->equation[2]*pz + _s->equation[3];
 }

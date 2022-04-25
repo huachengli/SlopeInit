@@ -35,6 +35,8 @@ typedef struct _SlopeInfo
     double equation[SLOPEDIM+1];
     int nlayers;
     int layerId[SLOPELAYER];
+    double depth[SLOPELAYER];
+    double sum_depth[SLOPELAYER];
     uintptr_t ldata[SLOPELAYER];
 
     // materials
@@ -46,13 +48,25 @@ typedef struct _SlopeInfo
     // other condition
     double gravity;
     double nu[SLOPELAYER]; // poisson ratio
+    double temperature;
+
+    // Initial Gravity/Pressure/Density profile
+    double * Grav;
+    double * Pre;
+    double * Den;
+    double * Tem;
+    double * Cs;
+    double * Nu;
+    int nstep;
+    double dh;
 } SlopeInfo;
 
 void LoadSlopeInfo(SlopeInfo * _s,const char * _fname);
 double Sk(int k,double ext);
 double Spacing(int k,double ext, int eL, int eR, int N);
 void GetTransformCorner(SlopeInfo * _p,double (*Xi)[SLOPEDIM]);
-void TransformInterpolate(double Xi[SLOPEDIM],double xl[SLOPEDIM],double (*Corner)[SLOPEDIM]);
+void TransformInterpolate(double Xi[SLOPEDIM],double xl[SLOPEDIM],const double Corner[][SLOPEDIM]);
+double EvaluateDepth(SlopeInfo * _s,double px,double py, double  pz);
 #ifdef __cplusplus
 }
 #endif
