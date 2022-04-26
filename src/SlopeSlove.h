@@ -246,6 +246,58 @@ namespace SlopeEquationData
 
 }
 
+namespace OutHelper
+{
+    using namespace dealii;
+    template <int dim>
+    class StrainPostprocessor : public DataPostprocessorTensor<dim>
+    {
+    private:
+        SlopeEquationData::ConstitutiveLaw<dim> constitutive_law;
+    public:
+        explicit StrainPostprocessor(SlopeInfo * sinfo):
+        DataPostprocessorTensor<dim>("stress", update_gradients|update_quadrature_points),
+        constitutive_law(sinfo){}
+
+        virtual void evaluate_vector_field(
+                const DataPostprocessorInputs::Vector<dim> &input_data,
+                std::vector<Vector<double>> &               computed_quantities) const
+        {
+            AssertDimension(input_data.solution_gradients.size(),
+                            computed_quantities.size());
+
+            for (unsigned int p = 0; p < input_data.solution_gradients.size(); ++p)
+            {
+                AssertDimension(computed_quantities[p].size(),
+                                (Tensor<2, dim>::n_independent_components));
+
+                SymmetricTensor<4,dim> c_tensor;
+                SymmetricTensor<2,dim> t_stress,t_strain;
+                constitutive_law.GetStrainStressTensor(input_data.evaluation_points[p],c_tensor);
+
+                for (unsigned int d = 0; d < dim; ++d)
+                    for (unsigned int e = 0; e < dim; ++e)
+                    {
+                        t_strain[d][e] = (input_data.solution_gradients[p][d][e] +
+                                          input_data.solution_gradients[p][e][d])/2;
+                    }
+
+                t_stress = c_tensor*t_strain;
+
+                for (unsigned int d = 0; d < dim; ++d)
+                    for (unsigned int e = 0; e < dim; ++e)
+                    {
+                        computed_quantities[p][Tensor<2, dim>::component_to_unrolled_index(TableIndices<2>(d, e))]
+                        = t_stress[d][e];
+                    }
+
+
+
+            }
+        }
+    };
+}
+
 
 namespace Slope
 {
@@ -557,9 +609,17 @@ namespace Slope
     void SlopeProblem<dim>::output_results(const unsigned int cycle) const
     {
         DataOut<dim> data_out;
+        OutHelper::StrainPostprocessor<dim> strain_calculator;
+        std::vector<DataComponentInterpretation::DataComponentInterpretation>
+                data_component_interpretation(dim, DataComponentInterpretation::component_is_part_of_vector);
         data_out.attach_dof_handler(dof_handler);
-        data_out.add_data_vector(locally_relevant_solution,"u");
+        data_out.add_data_vector(locally_relevant_solution,
+                                 std::vector<std::string>(dim, "displacement"),
+                                 DataOut<dim>::type_dof_data,
+                                 data_component_interpretation);
 
+        data_out.add_data_vector(locally_relevant_solution,
+                                 strain_calculator);
         Vector<float> subdomain(triangulation.n_active_cells());
         for(unsigned int i=0;i<subdomain.size();++i)
         {
