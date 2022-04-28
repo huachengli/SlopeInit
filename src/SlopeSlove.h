@@ -153,7 +153,7 @@ namespace SlopeEquationData
     {
     public:
         ConstitutiveLaw(SlopeInfo * _slope);
-        void GetStrainStressTensor(const Point<dim> &p,SymmetricTensor<4, dim> & c);
+        void GetStrainStressTensor(const Point<dim> &p,SymmetricTensor<4, dim> & c) const;
         void GetStrainStressTensorList(const std::vector<Point<dim>> &pts,std::vector<SymmetricTensor<4, dim>> &clist);
     private:
         SymmetricTensor<4,dim> c_kappa;
@@ -176,7 +176,7 @@ namespace SlopeEquationData
     {}
 
     template<int dim>
-    void ConstitutiveLaw<dim>::GetStrainStressTensor(const Point<dim> &p, SymmetricTensor<4, dim> &c)
+    void ConstitutiveLaw<dim>::GetStrainStressTensor(const Point<dim> &p, SymmetricTensor<4, dim> &c) const  
     {
         double pdepth = EvaluateDepth(slope,p[0],p[1],p[2]);
         int pindex = (int)(fabs(pdepth)/slope->dh);
@@ -599,7 +599,6 @@ namespace Slope
         const SlopeEquationData::DomainTransform<dim> local_transformer(t_corner);
 
         GridTools::transform(local_transformer, triangulation);
-//        GridTools::scale(1.0e5,triangulation);
 
         if(refine_time > 0)
             triangulation.refine_global(refine_time);
@@ -609,7 +608,7 @@ namespace Slope
     void SlopeProblem<dim>::output_results(const unsigned int cycle) const
     {
         DataOut<dim> data_out;
-        OutHelper::StrainPostprocessor<dim> strain_calculator;
+        OutHelper::StrainPostprocessor<dim> strain_calculator(this->slope_info);
         std::vector<DataComponentInterpretation::DataComponentInterpretation>
                 data_component_interpretation(dim, DataComponentInterpretation::component_is_part_of_vector);
         data_out.attach_dof_handler(dof_handler);

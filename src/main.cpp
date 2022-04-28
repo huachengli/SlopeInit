@@ -1,8 +1,8 @@
 #include <iostream>
-#include "src/InputParser.h"
-#include "src/SlopeGeometry.h"
-#include "src/eos_cpp.h"
-#include "src/SlopeSlove.h"
+#include "InputParser.h"
+#include "SlopeGeometry.h"
+#include "eos_cpp.h"
+#include "SlopeSlove.h"
 
 int main(int argc,char * argv[])
 {
