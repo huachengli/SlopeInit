@@ -58,6 +58,20 @@ int InSubset(char _c,const char _set[])
     return 0;
 }
 
+int InSubSet2(char _c,const char _set[])
+{
+    /*
+     * compare InSubSet, this function return the position of _c in _set
+     */
+    const char * p = _set;
+    for(;*p!='\0';p++)
+    {
+        if(*p==_c)
+            return (int)(p + 1 -_set);
+    }
+    return 0;
+}
+
 int Strok(const char _str[],const char _delim[], char value[])
 {
     const char * p = _str;
@@ -84,6 +98,53 @@ int Strok(const char _str[],const char _delim[], char value[])
     value[k] = '\0';
     return i;
 }
+
+int Strok2(const char _str[],const char _delim[], const char _sdelim[],char value[])
+{
+    const char *p = _str;
+    int delimiter_flag = 0, special_delimiter_flag = 0, cur_position = 0;
+    int num_char_copyed = 0;
+    for(;*p!='\0';++p)
+    {
+        if(InSubset(*p,_delim))
+        {
+            if(num_char_copyed == 0)
+                continue;
+            else
+                break;
+        }
+        {
+            int tmp_special_delimiter_flag = InSubSet2(*p,_sdelim);
+            value[num_char_copyed++] = *p;
+
+            if(tmp_special_delimiter_flag && special_delimiter_flag)
+            {
+                break;
+            } else
+            {
+                special_delimiter_flag = tmp_special_delimiter_flag;
+            }
+        }
+        cur_position++;
+    }
+
+    // delete the last character
+    if(special_delimiter_flag)
+    {
+        num_char_copyed -= 2;
+    }
+
+    // seek next string in _str
+    for(;*p!='\0';++p)
+    {
+        if(!InSubset(*p,_delim)) break;
+        cur_position++;
+    }
+
+    value[num_char_copyed] = '\0';
+    return cur_position;
+}
+
 
 int ReadLineTrim(unsigned char _buffer[],FILE *fp)
 {
@@ -245,6 +306,69 @@ InputFile * OpenInputFile(const char fname[])
     SortInputFile(ifp,0,ifp->Len-1);
     return ifp;
 }
+
+InputFile * OpenInputFile2(const char fname[])
+{
+    /*
+     * use Strok2 in OpenFile
+     */
+    FILE * fp = fopen(fname,"r");
+    InputFile * ifp = (InputFile *) malloc(sizeof(InputFile));
+    if(NULL == ifp)
+    {
+        fprintf(stdout,"Cannot open input file * %s * \n",fname);
+        exit(0);
+    }
+    ifp->Len = 0;
+
+    char LineBuffer[300];
+    char MainDelimiter[] = "= ";
+    char SubDelimiter[]  = "#\"";
+    char SpecialSubDelimiter[] = "/*";
+    char Field[MaxStrLen] = "mesh";
+
+    while(fscanf(fp,"%[^\n]",LineBuffer)!=EOF)
+    {
+        fgetc(fp);
+        trim(LineBuffer);
+        int LineBufferLen = strlen(LineBuffer);
+        if((LineBufferLen==0) || IsComment(LineBuffer)) continue;
+        if((LineBuffer[0]=='[') && (LineBuffer[LineBufferLen-1]==']'))
+        {
+            LineBuffer[LineBufferLen-1] = '\0';
+            strcpy(Field,LineBuffer+1);
+            continue;
+        }
+
+        char tKey[MaxStrLen], tValue[MaxStrLen];
+        int r = Strok(LineBuffer,MainDelimiter,tKey);
+        Strok2(LineBuffer+r,SubDelimiter,SpecialSubDelimiter,tValue);
+        if((0== strlen(tKey)) || (0== strlen(tValue)))
+        {
+            LineBuffer[0] = '\0';
+            continue;
+        }
+
+        if(InField(tKey))
+        {
+            sprintf(ifp->Key[ifp->Len],"%s.%s",Field,tKey);
+            strcpy(ifp->Value[ifp->Len], tValue);
+        } else
+        {
+            strcpy(ifp->Key[ifp->Len], tKey);
+            strcpy(ifp->Value[ifp->Len], tValue);
+        }
+
+        trim(ifp->Key[ifp->Len]);
+        trim(ifp->Value[ifp->Len]);
+        ifp->Len++;
+        LineBuffer[0] = '\0';
+    }
+    fclose(fp);
+    SortInputFile(ifp,0,ifp->Len-1);
+    return ifp;
+}
+
 
 InputFile * ParseInputFile(FILE * fp)
 {

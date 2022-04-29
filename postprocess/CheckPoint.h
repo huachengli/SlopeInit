@@ -8,6 +8,16 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "vtkMathUtilities.h"
+#include "vtkNew.h"
+#include "vtkPointData.h"
+#include "vtkTesting.h"
+#include "vtkUnstructuredGrid.h"
+#include "vtkXMLPUnstructuredGridReader.h"
+#include "vtkXMLUnstructuredGridReader.h"
+#include "vtkDoubleArray.h"
+#include "vtkFloatArray.h"
+
 #define DIM  3  // mesh dimension
 #define DIM3 27
 #define VPB  4  // nodes/vertexes per boundary
@@ -109,8 +119,11 @@ public:
     void LoadChk();
     void WriteChk(const char * out_prefix) const;
     void SetPrefix(const char *_prefix);
+    void Resize(int _ne);
+    void MergeVtu(vtkUnstructuredGrid * vtu_data);
     ~Mesh();
 };
+
 
 
 

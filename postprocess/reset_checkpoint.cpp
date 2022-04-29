@@ -2,36 +2,55 @@
 // Created by huacheng on 4/27/22.
 //
 
-#include "vtkMathUtilities.h"
-#include "vtkNew.h"
-#include "vtkPointData.h"
-#include "vtkTesting.h"
-#include "vtkUnstructuredGrid.h"
-#include "vtkXMLPUnstructuredGridReader.h"
-#include "vtkXMLUnstructuredGridReader.h"
-#include "vtkDoubleArray.h"
-#include "vtkFloatArray.h"
+#include "InputParser.h"
+#include "CheckPoint.h"
+#include "memory"
 
 int main(int argc, char* argv[])
 {
+    char VtuFile[200];
+    char ChkPrefix[200];
+    char OutPrefix[200];
+    char Default[] = "0";
+    int MaxRank;
+    InputFile * ifp = OpenInputFile2("../postprocess.inp");
+    GetValueS(ifp,"process.pvtu",VtuFile,Default);
+    GetValueS(ifp,"process.chkprefix",ChkPrefix,Default);
+    GetValueS(ifp,"process.outprefix",OutPrefix,Default);
+    MaxRank = GetValueI(ifp,"process.nrank",Default);
+    CloseInputFile(ifp);
+
+    std::cout << VtuFile << std::endl;
     vtkNew<vtkXMLPUnstructuredGridReader> reader;
-    if(argc < 2)
-        reader->SetFileName("solution_00.pvtu");
-    else
-        reader->SetFileName(argv[1]);
+    reader->SetFileName(VtuFile);
     reader->Update();
+    vtkUnstructuredGrid * slope_vtu_data = vtkUnstructuredGrid::SafeDownCast(reader->GetOutputAsDataSet());
 
-    vtkUnstructuredGrid * unstructuredGrid = vtkUnstructuredGrid::SafeDownCast(reader->GetOutputAsDataSet());
+    std::cout << "number of points:" << slope_vtu_data->GetNumberOfPoints()
+              << "\n" << "number of cells:" << slope_vtu_data->GetNumberOfCells() << std::endl;
 
-    std::cout << "number of points:" << unstructuredGrid->GetNumberOfPoints()
-              << "\n" << "number of cells:"<< unstructuredGrid->GetNumberOfCells() << std::endl;
+
+    std::allocator<Mesh> mesh_allocator;
+    Mesh * mesh_per_rank = mesh_allocator.allocate(MaxRank);
+    for(int k_rank=0;k_rank<MaxRank;++k_rank)
+    {
+        Mesh * local_mesh = mesh_per_rank + k_rank;
+        mesh_allocator.construct(local_mesh,0,k_rank);
+        local_mesh->SetPrefix(ChkPrefix);
+        local_mesh->LoadChk();
+        local_mesh->MergeVtu(slope_vtu_data);
+        mesh_allocator.destroy(local_mesh);
+    }
+    mesh_allocator.deallocate(mesh_per_rank,MaxRank);
+
+
 
     double test_x[3] = {0.,0.,-2.0e4};
     double weight[24] = {0.},pcoord[3] = {0.,0.,-2.0e4};
     int subId = -1;
-    int targetId = unstructuredGrid->FindCell(test_x, nullptr,-1,1.0e-6,subId,pcoord,weight);
+    int targetId = slope_vtu_data->FindCell(test_x, nullptr, -1, 1.0e-6, subId, pcoord, weight);
 
-    vtkCell * targetCell = unstructuredGrid->GetCell(targetId);
+    vtkCell * targetCell = slope_vtu_data->GetCell(targetId);
 
     size_t nc_points = targetCell->GetNumberOfPoints();
     for(size_t k=0;k<nc_points;k++)
@@ -44,7 +63,7 @@ int main(int argc, char* argv[])
 
     std::cout << "target_id:" << targetId <<std::endl;
 
-    vtkPointData * vtuPointData = unstructuredGrid->GetPointData();
+    vtkPointData * vtuPointData = slope_vtu_data->GetPointData();
     int n_array = vtuPointData->GetNumberOfArrays();
     vtkAbstractArray * stress_array_abstract = vtuPointData->GetAbstractArray("stress");
     auto * stress_array = vtkArrayDownCast<vtkFloatArray>(stress_array_abstract);

@@ -13,7 +13,7 @@ void ScalerMove(double *_a, const double *_b, double _p)
 
 void ChkWrite(const Mesh * _mesh,int _xrank, const char _chkPrefix[])
 {
-    char fname[50];
+    char fname[200];
     sprintf(fname,"%s.proc%04d.chk",_chkPrefix,_xrank);
     FILE *fp = fopen(fname,"wb");
     fwrite(&(_mesh->ne),sizeof(int),1,fp);
@@ -38,7 +38,7 @@ void ChkWrite(const Mesh * _mesh,int _xrank, const char _chkPrefix[])
 
 void ChkLoad(Mesh * _mesh,int _xrank, const char _chkPrefix[])
 {
-    char fname[50];
+    char fname[200];
     sprintf(fname,"%s.proc%04d.chk",_chkPrefix,_xrank);
     FILE *fp = fopen(fname,"rb");
     if(NULL == fp)
@@ -56,6 +56,8 @@ void ChkLoad(Mesh * _mesh,int _xrank, const char _chkPrefix[])
         fprintf(stdout,"Error in read number of elements in check point files");
         exit(0);
     }
+
+    _mesh->Resize(ChkElements);
 
     int ChkIndex = 0;
     for(int k=0;k<_mesh->ne;k++)
@@ -98,7 +100,10 @@ void ChkLoad(Mesh * _mesh,int _xrank, const char _chkPrefix[])
 
 Mesh::Mesh(int _ne,int _rank):ne(_ne),rank(_rank)
 {
-    this->Elements = new Element[ne];
+    if(ne > 0)
+        this->Elements = new Element[ne];
+    else
+        this->Elements = nullptr;
 }
 
 Mesh::~Mesh()
@@ -119,4 +124,77 @@ void Mesh::WriteChk(const char *out_prefix) const
 void Mesh::SetPrefix(const char *_prefix)
 {
     strcpy(this->prefix,_prefix);
+}
+
+void Mesh::Resize(int _ne)
+{
+    if(_ne != this->ne)
+    {
+        delete [] this->Elements;
+        this->ne = _ne;
+        this->Elements = new Element[_ne];
+    }
+}
+
+void Mesh::MergeVtu(vtkUnstructuredGrid *vtu_data)
+{
+    vtkAbstractArray * stress_abstract_array = vtu_data->GetPointData()->GetAbstractArray("stress");
+    auto * stress_array = vtkArrayDownCast<vtkFloatArray>(stress_abstract_array);
+    for(size_t k_element=0;k_element< this->ne;++k_element)
+    {
+        Element * element_ptr = this->Elements + k_element;
+
+        double vacuum_fraction = element_ptr->VOF[0];
+        if(vacuum_fraction > 1.0e-5) continue;
+
+        double * element_center = element_ptr->Center;
+        int subId;
+        double cell_pcoord[24],cell_weight[24], cell_stress[9]={0.};
+        vtkNew<vtkGenericCell> thread_local_gencell;
+        vtkIdType element_cell_id = vtu_data->FindCell(element_center, nullptr, -1, 1.0e-6,
+                                                       subId, cell_pcoord, cell_weight);
+        vtkIdType element_cell_id_2 = vtu_data->FindCell(element_center, nullptr,thread_local_gencell,
+                                                       -1, 1.0e-6, subId, cell_pcoord, cell_weight);
+
+        assert(element_cell_id == element_cell_id_2);
+
+        if(element_cell_id < 0)
+        {
+            std::cout << "Warning: cell [" << element_center[0] << ","
+            << element_center[1] << "," << element_center[2] << "]" << std::endl;
+            std::cout << "stress is unknown\n";
+            continue;
+        }
+        vtkCell * target_cell = vtu_data->GetCell(element_cell_id);
+
+        int n_cell_points = target_cell->GetNumberOfPoints();
+        int n_stress_compoents = stress_array->GetNumberOfComponents();
+        assert(n_stress_compoents == 9);
+        vtkNew<vtkFloatArray> cell_stress_array;
+        cell_stress_array->SetNumberOfComponents(n_stress_compoents);
+        cell_stress_array->SetNumberOfTuples(n_cell_points);
+        stress_array->GetTuples(target_cell->GetPointIds(),cell_stress_array);
+
+        {
+            for(vtkIdType i_point=0;i_point<n_cell_points;++i_point)
+                for(vtkIdType k_component=0;k_component<n_stress_compoents;++k_component)
+                {
+                    cell_stress[k_component] = cell_stress_array->GetValue(i_point*n_stress_compoents + k_component)
+                            * cell_weight[i_point];
+                }
+        }
+
+        double cell_pressure = -(1./3.)*(cell_stress[0] + cell_stress[3] + cell_stress[8]);
+        cell_stress[0] += cell_pressure;
+        cell_stress[3] += cell_pressure;
+        cell_stress[8] += cell_pressure;
+
+
+        element_ptr->Pressure = cell_pressure;
+        double * elememt_stress = element_ptr->PsiL3 + 1; // first compoent in PsiL3 is damage
+        for(vtkIdType k_component=0;k_component<n_stress_compoents;++k_component)
+        {
+            elememt_stress[k_component] = cell_stress[k_component];
+        }
+    }
 }

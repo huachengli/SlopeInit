@@ -1,0 +1,6 @@
+# this is input for SlopeInit/PostProcess
+[process]
+    pvtu = solution_00.pvtu
+    chkprefix  = /home/huacheng/Documents/Github/SALEc/cmake-build-debug/export_check.0000
+    outprefix  = reset_check.0000
+    nrank = 8

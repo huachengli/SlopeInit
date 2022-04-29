@@ -25,6 +25,15 @@ int main(int argc,char * argv[])
         SlopeProblem<3> slope_problem;
         slope_problem.set_info(&pSlopeInfo);
         slope_problem.run();
+
+       /* if(Utilities::MPI::this_mpi_process(MPI_COMM_WORLD)==0)
+        {
+            for(int k=0;k<3;++k)
+            {
+                for(int j=0;j<3;++j)
+                    std::cout << Tensor<2, 3>::component_to_unrolled_index(TableIndices<2>(k, j)) << std::endl;
+            }
+        }*/
     }
     catch(std::exception &exc)
     {
@@ -51,6 +60,7 @@ int main(int argc,char * argv[])
                   << std::endl;
         return 1;
     }
+
 
     return 0;
 }

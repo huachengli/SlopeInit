@@ -48,6 +48,9 @@ int Strok(const char _str[],const char _delim[], char value[]);
 int InSubset(char _c,const char _set[]);
 int ReadLineTrim(unsigned char _buffer[],FILE *fp);
 
+// different implement of Strok/OpenInputFile to process parameter contain directories' delimiter(/)
+int Strok2(const char _str[],const char _delim[], const char _sdelim[],char value[]);
+InputFile * OpenInputFile2(const char fname[]);
 #ifdef __cplusplus
 }
 #endif
