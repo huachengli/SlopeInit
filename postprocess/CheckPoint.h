@@ -109,22 +109,25 @@ struct Element
 // just for load/write check point (different from SALEc)
 class Mesh
 {
-public:
-    int ne;
+private:
     int rank;
-    struct Element * Elements;
     char prefix[200];
+public:
     Mesh() = delete;
     explicit Mesh(int _ne,int _rank);
     void LoadChk();
-    void WriteChk(const char * out_prefix) const;
+    void ExportChk(const char * out_prefix) const;
     void SetPrefix(const char *_prefix);
     void Resize(int _ne);
     void MergeVtu(vtkUnstructuredGrid * vtu_data);
     ~Mesh();
+
+    struct Element * Elements;
+    int ne;
 };
 
 
+#define MULTITHREAD_MERGE 1
 
 
 #endif //SLOPEINIT_CHECKPOINT_H

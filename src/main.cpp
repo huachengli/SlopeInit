@@ -2,7 +2,7 @@
 #include "InputParser.h"
 #include "SlopeGeometry.h"
 #include "eos_cpp.h"
-#include "SlopeSlove.h"
+#include "slopesolve.h"
 
 int main(int argc,char * argv[])
 {

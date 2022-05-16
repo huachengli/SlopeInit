@@ -2,8 +2,8 @@
 // Created by huacheng on 4/21/22.
 //
 
-#ifndef SLOPEINIT_SLOPESLOVE_H
-#define SLOPEINIT_SLOPESLOVE_H
+#ifndef SLOPEINIT_SLOPESOLVE_H
+#define SLOPEINIT_SLOPESOLVE_H
 
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
@@ -670,4 +670,4 @@ namespace Slope
 
 
 
-#endif //SLOPEINIT_SLOPESLOVE_H
+#endif //SLOPEINIT_SLOPESOLVE_H

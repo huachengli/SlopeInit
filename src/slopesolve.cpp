@@ -2,7 +2,7 @@
 // Created by huacheng on 4/21/22.
 //
 
-#include "SlopeSlove.h"
+#include "slopesolve.h"
 
 void SlopeEquationData::InitSlopeEos(SlopeInfo * pSlopeInfo)
 {

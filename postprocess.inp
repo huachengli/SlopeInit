@@ -4,3 +4,4 @@
     chkprefix  = /home/huacheng/Documents/Github/SALEc/cmake-build-debug/export_check.0000
     outprefix  = reset_check.0000
     nrank = 8
+    nchk  = 8

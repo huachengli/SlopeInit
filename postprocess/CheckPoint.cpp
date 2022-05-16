@@ -116,7 +116,7 @@ void Mesh::LoadChk()
     ChkLoad(this,this->rank,this->prefix);
 }
 
-void Mesh::WriteChk(const char *out_prefix) const
+void Mesh::ExportChk(const char *out_prefix) const
 {
     ChkWrite(this,this->rank,out_prefix);
 }
@@ -138,8 +138,19 @@ void Mesh::Resize(int _ne)
 
 void Mesh::MergeVtu(vtkUnstructuredGrid *vtu_data)
 {
-    vtkAbstractArray * stress_abstract_array = vtu_data->GetPointData()->GetAbstractArray("stress");
+
+    vtkNew<vtkGenericCell> local_gencell;
+
+#ifdef MULTITHREAD_MERGE
+    vtkNew<vtkUnstructuredGrid> local_vtu_data;
+    local_vtu_data->ShallowCopy(vtu_data);
+#else
+    vtkUnstructuredGrid * local_vtu_data = vtu_data;
+#endif
+
+    vtkAbstractArray * stress_abstract_array = local_vtu_data->GetPointData()->GetAbstractArray("stress");
     auto * stress_array = vtkArrayDownCast<vtkFloatArray>(stress_abstract_array);
+    local_vtu_data->BuildLocator();
     for(size_t k_element=0;k_element< this->ne;++k_element)
     {
         Element * element_ptr = this->Elements + k_element;
@@ -150,30 +161,27 @@ void Mesh::MergeVtu(vtkUnstructuredGrid *vtu_data)
         double * element_center = element_ptr->Center;
         int subId;
         double cell_pcoord[24],cell_weight[24], cell_stress[9]={0.};
-        vtkNew<vtkGenericCell> thread_local_gencell;
-        vtkIdType element_cell_id = vtu_data->FindCell(element_center, nullptr, -1, 1.0e-6,
-                                                       subId, cell_pcoord, cell_weight);
-        vtkIdType element_cell_id_2 = vtu_data->FindCell(element_center, nullptr,thread_local_gencell,
-                                                       -1, 1.0e-6, subId, cell_pcoord, cell_weight);
 
-        assert(element_cell_id == element_cell_id_2);
+        vtkIdType element_cell_id = local_vtu_data->FindCell(element_center, nullptr, local_gencell,
+                                                             -1, 1.0e-6, subId, cell_pcoord, cell_weight);
 
         if(element_cell_id < 0)
         {
-            std::cout << "Warning: cell [" << element_center[0] << ","
-            << element_center[1] << "," << element_center[2] << "]" << std::endl;
-            std::cout << "stress is unknown\n";
+            /*
+             * element in projectile,
+             */
             continue;
         }
-        vtkCell * target_cell = vtu_data->GetCell(element_cell_id);
 
-        int n_cell_points = target_cell->GetNumberOfPoints();
+        local_vtu_data->GetCell(element_cell_id, local_gencell);
+
+        int n_cell_points = local_gencell->GetNumberOfPoints();
         int n_stress_compoents = stress_array->GetNumberOfComponents();
         assert(n_stress_compoents == 9);
         vtkNew<vtkFloatArray> cell_stress_array;
         cell_stress_array->SetNumberOfComponents(n_stress_compoents);
         cell_stress_array->SetNumberOfTuples(n_cell_points);
-        stress_array->GetTuples(target_cell->GetPointIds(),cell_stress_array);
+        stress_array->GetTuples(local_gencell->GetPointIds(), cell_stress_array);
 
         {
             for(vtkIdType i_point=0;i_point<n_cell_points;++i_point)
@@ -198,3 +206,4 @@ void Mesh::MergeVtu(vtkUnstructuredGrid *vtu_data)
         }
     }
 }
+
